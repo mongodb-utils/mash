@@ -1,0 +1,27 @@
+{
+  "name": "mash",
+  "description": "MongoDB Key/Value Cache",
+  "version": "1.0.0",
+  "dependencies": {
+    "bluebird": "2"
+  },
+  "devDependencies": {
+    "mocha": "*",
+    "mongodb": "*",
+    "istanbul": "*"
+  },
+  "scripts": {
+    "test": "mocha --reporter spec",
+    "test-cov": "istanbul cover ./node_modules/.bin/_mocha",
+    "test-travis": "istanbul cover ./node_modules/.bin/_mocha --report lcovonly"
+  },
+  "author": {
+    "name": "Jonathan Ong",
+    "email": "me@jongleberry.com",
+    "url": "http://jongleberry.com",
+    "twitter": "https://twitter.com/jongleberry"
+  },
+  "repository": "mongodb-utils/mash",
+  "license": "MIT",
+  "files": ["index.js"]
+}
