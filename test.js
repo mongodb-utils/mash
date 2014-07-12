@@ -1,4 +1,5 @@
 
+var Promise = require('bluebird')
 var assert = require('assert')
 
 var Mash = require('./')
