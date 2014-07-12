@@ -30,7 +30,8 @@ describe('Mash', function () {
   it('should get and set', function () {
     var cache = new Mash('set_get', 1000)
 
-    return cache.set(currentDate).then(function () {
+    return cache.set(currentDate).then(function (val) {
+      assert.equal(currentDate, val)
       return cache.get()
     }).then(function (val) {
       assert(val)

@@ -94,7 +94,7 @@ Mash.prototype.set = function (value, maxAge) {
       upsert: true
     }, function (err) {
       if (err) reject(err)
-      else resolve()
+      else resolve(value)
     })
   })
 }
