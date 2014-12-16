@@ -1,104 +1,108 @@
 
-var util = require('util')
-var Promise = require('bluebird')
+var wrap = require('mongodb-next').collection
+var assert = require('assert')
+var ms = require('ms')
 
-module.exports = function (options) {
-  return Mash.extend(options)
+module.exports = Mash
+
+function Mash(options) {
+  if (!(this instanceof Mash)) return new Mash(options)
+
+  options = options || {}
+  this.maxAge(options.maxAge || options.maxage || '5m')
+  if (options.collection) this.collection = options.collection
 }
 
-Mash.extend = function (options) {
-  function Mash(key, maxAge) {
-    if (!(this instanceof Mash))
-      return new Mash(key, maxAge)
+/**
+ * Lazily set the MongoDB collection.
+ * Asserts when you try to use it before it's set.
+ */
 
-    this._init(key, maxAge)
+Object.defineProperty(Mash.prototype, 'collection', {
+  set: function (collection) {
+    assert(!this._collection, 'A `.collection` is already set!')
+    this._collection = wrap(this.rawCollection = collection)
+  },
+  get: function () {
+    assert(this._collection, 'Set `.collection` first!')
+    return this._collection
+  }
+})
+
+/**
+ * Set the default max age.
+ */
+
+Mash.prototype.maxAge = function (value) {
+  if (typeof value === 'string') this._maxAge = ms(value)
+  if (typeof value === 'number') this._maxAge = value
+  return this
+}
+
+/**
+ * Set a value to a key.
+ */
+
+Mash.prototype.set = function (key, value, maxAge) {
+  maxAge = maxAge || this._maxAge
+  if (typeof maxAge === 'string') maxAge = ms(maxAge)
+
+  return this.collection.findOne({
+    _id: key
+  }).set({
+    value: value,
+    created: new Date(),
+    expires: new Date(Date.now() + maxAge)
+  }).upsert()
+}
+
+/**
+ * Get latest value based on a key.
+ */
+
+Mash.prototype.get = function (key, maxAge) {
+  var query = this.collection.findOne({
+    _id: key,
+    expires: {
+      $gt: new Date()
+    }
+  }).sort({
+    created: -1 // newest, in case `key` is not a single value
+  })
+
+  // optional max age separate from creation
+  if (typeof maxAge === 'string') maxAge = ms(maxAge)
+  if (typeof maxAge === 'number') {
+    query.find('created', {
+      $gt: Date.now() - maxAge
+    })
   }
 
-  util.inherits(Mash, this)
-
-  Object.keys(this).forEach(function (key) {
-    Mash[key] = this[key]
-  }, this)
-
-  Object.keys(options || {}).forEach(function (key) {
-    Mash[key] = options[key]
-  }, this)
-
-  return Mash
+  return query
 }
 
-// Defaults
-Mash.maxAge = 30000
+/**
+ * Evict all caches based on a key.
+ */
 
-/*
+Mash.prototype.evict = function (key) {
+  return this.collection.remove('_id', key)
+}
 
-  @key = string, array, or object (no nested objects)
-  @maxAge = ms until cache expires
+/**
+ * Create an index on this collection,
+ * which basically makes sure to delete all
+ * objects that have expired.
+ *
+ * Note that the only other index is `_id`,
+ * which is already set.
+ */
 
-*/
-function Mash() {}
-
-// Will evict all keys that has this key
-// ie evicting `user_followers` will evict `user_followers_new` as well
-Mash.evict = function (key) {
-  var collection = this.collection
-
-  return new Promise(function (resolve, reject) {
-    collection.remove({
-      _id: key
-    }, function (err) {
-      if (err) reject(err)
-      else resolve()
-    })
+Mash.prototype.ensureIndexes =
+Mash.prototype.ensureIndex = function () {
+  return this.collection.ensureIndex({
+    expires: 1
+  }, {
+    expireAfterSeconds: 0
   })
-}
-
-Mash.prototype._init = function (key, maxAge) {
-  this.key = key
-  this.maxAge = typeof maxAge === 'number'
-    ? maxAge
-    : this.constructor.maxAge
-}
-
-Mash.prototype.get = function () {
-  var collection = this.constructor.collection
-  var key = this.key
-
-  return new Promise(function (resolve, reject) {
-    collection.findOne({
-      _id: key,
-      expire: {
-        $gt: new Date()
-      }
-    }, function (err, doc) {
-      if (err) reject(err)
-      else if (doc) resolve(doc.value)
-      else resolve()
-    })
-  })
-}
-
-Mash.prototype.set = function (value, maxAge) {
-  maxAge = maxAge || this.maxAge
-  var collection = this.constructor.collection
-  var key = this.key
-
-  return new Promise(function (resolve, reject) {
-    collection.findAndModify({
-      _id: key
-    }, [/* sort */], {
-      _id: key,
-      value: value,
-      expire: new Date(Date.now() + maxAge),
-    }, {
-      upsert: true
-    }, function (err) {
-      if (err) reject(err)
-      else resolve(value)
-    })
-  })
-}
-
-Mash.prototype.evict = function () {
-  return this.constructor.evict(this.key)
 }

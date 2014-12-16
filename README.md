@@ -1,18 +1,12 @@
 ## Mash
 
 [![NPM version][npm-image]][npm-url]
-[![build status][travis-image]][travis-url]
+[![Build status][travis-image]][travis-url]
 [![Test coverage][coveralls-image]][coveralls-url]
+[![Dependency Status][david-image]][david-url]
+[![License][license-image]][license-url]
+[![Downloads][downloads-image]][downloads-url]
 [![Gittip][gittip-image]][gittip-url]
-
-[npm-image]: https://img.shields.io/npm/v/mash.svg?style=flat
-[npm-url]: https://npmjs.org/package/mash
-[travis-image]: https://img.shields.io/travis/mongodb-utils/mash.svg?style=flat
-[travis-url]: https://travis-ci.org/mongodb-utils/mash
-[coveralls-image]: https://img.shields.io/coveralls/mongodb-utils/mash.svg?style=flat
-[coveralls-url]: https://coveralls.io/r/mongodb-utils/mash?branch=master
-[gittip-image]: https://img.shields.io/gittip/jonathanong.svg?style=flat
-[gittip-url]: https://www.gittip.com/jonathanong/
 
 Use MongoDB as a key/value store.
 This is useful only for those who already use MongoDB and don't want to add another layer to their stack
@@ -24,67 +18,77 @@ Documents are stored as:
 
 ```json
 {
-  "_id": key,
-  "value": value,
-  "expire": Date
+  "_id": "<key>",
+  "value": "<value>",
+  "expires": "<Date>",
+  "created": "<Date>"
 }
 ```
 
-### var mash = require('mash')(options)
+### var cache = new Mash(options)
 
 Create a new `mash` instance.
 Options are:
 
 - `collection` - the MongoDB collection to use
-- `maxAge` - default expiration age in milliseconds
+- `maxAge` - default expiration age
 
-### mash(key, maxAge || 30000)
+### cache.maxAge(ms)
 
-Create a new cache object with a given `key` and a `maxAge` in milliseconds defaulting to 30 seconds.
+Set the default max age.
 
-```js
-var cache = mash('some key')
-```
+### cache.collection = collection
 
-### mash().get()
+Set the MongoDB collection to use.
+Does __not__ support capped collections.
 
-Retrieve the cacheed value if one exists.
+### cache.set(key, value, [maxAge]).then( doc => )
 
-### mash().set(value)
+Set the value. Can optionally override the default `maxAge`.
 
-Save the value with the associated key.
+Optionally you can chain:
 
-### mash().evict()
+- `.new()` - return the doc
+- `.w('majority')` - a write concern
 
-Delete the cache.
+### cache.get(key, [maxAge]).then( doc => )
 
-### mash.maxAge
+Retrieve the cached value if one exists.
+Optionally set a `maxAge` that overrides the one set by `.set().`
 
-Set the default `maxAge` argument for all `mash` instances.
+Optionally you can chain:
 
-### mash.evict(key)
+- `.readPreference('nearest')` - read preference
 
-Delete all documents that match the given `key`.
+### cache.evict(key).then( => )
 
-## MongoDB Settings
+Evict all documents based on a `key`,
+which could also be a MongoDB expression.
 
-### Key types
+Optionally you can chain:
 
-`mash` is agnostic to the type of `key` used.
-You can use strings, arrays, or objects.
-Thus, if you use strings, you can also evict using regular expressions.
+- `.w('majority')` - a write concern
 
-### Index
+### cache.ensureIndex().then( => )
 
-You'd want to create a secondary index that deletes documents based on `expire`:
+Ensure the index on the curret collection.
+Converts it into a TTL collection.
 
-```js
-db.cache.ensureIndex({
-  expire: -1
-}, {
-  expireAfterSeconds: 0
-})
-```
-
-This index will expire all documents where `doc.expire > new Date()`,
-keeping your collection as small as possible.
+[gitter-image]: https://badges.gitter.im/mongodb-utils/mash.png
+[gitter-url]: https://gitter.im/mongodb-utils/mash
+[npm-image]: https://img.shields.io/npm/v/mash.svg?style=flat-square
+[npm-url]: https://npmjs.org/package/mash
+[github-tag]: http://img.shields.io/github/tag/mongodb-utils/mash.svg?style=flat-square
+[github-url]: https://github.com/mongodb-utils/mash/tags
+[travis-image]: https://img.shields.io/travis/mongodb-utils/mash.svg?style=flat-square
+[travis-url]: https://travis-ci.org/mongodb-utils/mash
+[coveralls-image]: https://img.shields.io/coveralls/mongodb-utils/mash.svg?style=flat-square
+[coveralls-url]: https://coveralls.io/r/mongodb-utils/mash
+[david-image]: http://img.shields.io/david/mongodb-utils/mash.svg?style=flat-square
+[david-url]: https://david-dm.org/mongodb-utils/mash
+[license-image]: http://img.shields.io/npm/l/mash.svg?style=flat-square
+[license-url]: LICENSE
+[downloads-image]: http://img.shields.io/npm/dm/mash.svg?style=flat-square
+[downloads-url]: https://npmjs.org/package/mash
+[gittip-image]: https://img.shields.io/gratipay/jonathanong.svg?style=flat-square
+[gittip-url]: https://gratipay.com/jonathanong/
